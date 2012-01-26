@@ -8,37 +8,47 @@ error_reporting(E_ALL);
  * output directory.
  */
 $difftool = 'meld';
-$input = array(
+
+// which directories to scan for tests...
+$inputs = array(
+array(
 	'dir' => 'inputs',
 	'glob' => '*.less',
+	'importDir' => '%s/test-imports'
+),
+array(
+	'dir' => 'less.js/less',
+	'glob' => '*.less',
+	'importDir' => '%s/import'
+),
+// and output should map onto itself:
+array(
+	'dir' => 'outputs',
+	'glob' => '*.css',
+	'importDir' => '%s'
+)
 );
 
-$output = array(
+// one outputs[] entry per $inputs[] entry...
+$outputs = array(
+array(
 	'dir' => 'outputs',
-	'filename' => '%s.css',
+	'filename' => '%s.css'
+),
+array(
+	'dir' => 'less.js/css',
+	'filename' => '%s.css'
+),
+array(
+	'dir' => 'outputs',
+	'filename' => '%s.css'
+)
 );
 
 
 $prefix = strtr(realpath(dirname(__FILE__)), '\\', '/');
 require $prefix.'/../lessc.inc.php';
 
-$compiler = new lessc();
-/*
-  the last dir in the importDir array is also used as 'current dir' of 
-  any string data fed to the compiler, i.e. any stuff that doesn't 
-  come with a filename itself.
-  
-  The way this is written is not advisable to copycat; use
-      $compiler = new lessc($test['in']);
-	  $parsed = trim($compiler->parse();
-  instead, but then you'ld loose the 'inputs/test-imports' importDir
-  setup here; it is a hack (IMO) for previously incorrect path behaviour
-  of lessphp where some tests have the incorrect
-      @import('file1.less');
-  rather than the correct
-      @import('test-imports/file1.less');
- */
-$compiler->importDir = array($input['dir'].'/test-imports', $input['dir']);
 
 $fa = 'Fatal Error: ';
 if (php_sapi_name() != 'cli') { 
@@ -66,11 +76,6 @@ if (flag('unix-diff')) {
 	$difftool = 'diff -b -B -t -u';
 }
 
-$input['dir'] = $prefix.'/'.$input['dir'];
-$output['dir'] = $prefix.'/'.$output['dir'];
-if (!is_dir($input['dir']) || !is_dir($output['dir']))
-	exit($fa." both input and output directories must exist\n");
-
 // get the first non flag as search string
 $searchString = null;
 foreach ($argv as $a) {
@@ -81,14 +86,27 @@ foreach ($argv as $a) {
 }
 
 $tests = array();
-$matches = glob($input['dir'].'/'.(!is_null($searchString) ? '*'.$searchString : '' ).$input['glob']);
-if ($matches) {
-	foreach ($matches as $fname) {
-		extract(pathinfo($fname)); // for $filename, from php 5.2
-		$tests[] = array(
-			'in' => $fname,
-			'out' => $output['dir'].'/'.sprintf($output['filename'], $filename), 
-		);
+for ($i = 0; $i < count($inputs); $i++)
+{
+	// clone arrays:
+	$input = array_merge(array(), $inputs[$i]);
+	$output = array_merge(array(), $outputs[$i]);
+	
+	$input['dir'] = $prefix.'/'.$input['dir'];
+	$output['dir'] = $prefix.'/'.$output['dir'];
+	if (!is_dir($input['dir']) || !is_dir($output['dir']))
+		exit($fa." both input and output directories must exist: '{$input['dir']}' and '{$output['dir']}'\n");
+
+	$matches = glob($input['dir'].'/'.(!is_null($searchString) ? '*'.$searchString : '' ).$input['glob']);
+	if ($matches) {
+		foreach ($matches as $fname) {
+			extract(pathinfo($fname)); // for $filename, from php 5.2
+			$tests[] = array(
+				'in' => $fname,
+				'out' => $output['dir'].'/'.sprintf($output['filename'], $filename), 
+				'importDir' => array(sprintf($input['importDir'], $input['dir']), $input['dir'])
+			);
+		}
 	}
 }
 
@@ -107,20 +125,39 @@ function dump($msgs, $depth = 1, $prefix="    ") {
 $fail_prefix = " ** ";
 
 $i = 1;
+$fail_count = 0;
 foreach ($tests as $test) {
 	printf("    [Test %04d/%04d] %s -> %s\n", $i, $count, basename($test['in']), basename($test['out']));
 
+	$compiler = new lessc();
+	/*
+	  the last dir in the importDir array is also used as 'current dir' of 
+	  any string data fed to the compiler, i.e. any stuff that doesn't 
+	  come with a filename itself.
+	  
+	  The way this is written is not advisable to copycat; use
+		  $compiler = new lessc($test['in']);
+		  $parsed = trim($compiler->parse();
+	  instead, but then you'ld loose the 'inputs/test-imports' importDir
+	  setup here; it is a hack (IMO) for previously incorrect path behaviour
+	  of lessphp where some tests have the incorrect
+		  @import('file1.less');
+	  rather than the correct
+		  @import('test-imports/file1.less');
+	 */
+	$compiler->importDir = $test['importDir'];
+	
 	try {
 		ob_start();
 		$parsed = trim($compiler->parse(file_get_contents($test['in'])));
 		ob_end_clean();
-	} catch (exception $e) {
+	} catch (Exception $e) {
 		dump(array(
 			"Failed to compile input, reason:",
 			$e->getMessage(),
 			"Aborting"
 		), 1, $fail_prefix);
-		break;
+		//break;
 	}
 
 	if ($compiling) {
@@ -136,21 +173,41 @@ foreach ($tests as $test) {
 		}
 		$expected = trim(file_get_contents($test['out']));
 
+		try {
+			ob_start();
+			$compiler = new lessc($test['out']);
+			$expected_alt = trim($compiler->parse());
+			ob_end_clean();
+		} catch (Exception $e) {
+			$expected_alt = $expected;
+		}
+		
 		// don't care about CRLF vs LF change (DOS/Win vs. UNIX):
 		$expected = trim(str_replace("\r\n", "\n", $expected));
+		$expected_alt = trim(str_replace("\r\n", "\n", $expected_alt));
 		$parsed = trim(str_replace("\r\n", "\n", $parsed));
 
-		if ($expected != $parsed) {
+		if ($expected != $parsed && $expected_alt != $parsed) {
+			$fail_count++;
 			if ($showDiff) {
 				dump("Failed:", 1, $fail_prefix);
-				$tmp = $test['out'].".tmp";
-				file_put_contents($tmp, $parsed);
-				system($difftool.' '.$test['out'].' '.$tmp);
-				unlink($tmp);
+				$tmpinp = $test['out'].".in.tmp";
+				$tmpout = $test['out'].".out.tmp";
+				@unlink($tmpinp);
+				@unlink($tmpout);
+				file_put_contents($tmpinp, $parsed);
+				file_put_contents($tmpout, $expected_alt);
+				print("----------------------------------------------------------------------------\n");
+				system($difftool.' '.$tmpout.' '.$tmpinp);
+				print("----------------------------------------------------------------------------\n");
+				@unlink($tmpinp);
+				@unlink($tmpout);
 
-				dump("Aborting");
-				break;
-			} else dump("Failed, run with -d flag to view diff", 1, $fail_prefix);
+				//dump("Aborting");
+				//break;
+			} else {
+				dump("Failed, run with -d flag to view diff", 1, $fail_prefix);
+			}
 		} else {
 			dump("Passed");
 		}
@@ -158,5 +215,10 @@ foreach ($tests as $test) {
 
 	$i++;
 }
+$i--;
+
+printf("    [Tests: %d / failed: %d / passed: %d]\n", $i, $fail_count, $i - $fail_count);
+
+exit($fail_count? 1 : 0);
 
 ?>

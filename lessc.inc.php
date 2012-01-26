@@ -268,7 +268,7 @@ class lessc {
 		if ($this->literal('}')) {
 			try {
 				$block = $this->pop();
-			} catch (exception $e) {
+			} catch (Exception $e) {
 				$this->seek($s);
 				$this->throwParseError($e->getMessage());
 			}
@@ -1240,7 +1240,7 @@ class lessc {
 			break;
 		default:
 			echo "unknown op: {$prop[0]}\n";
-			throw new exception();
+			throw new Exception("unknown op: {$prop[0]}");
 		}
 	}
 
@@ -1342,7 +1342,7 @@ class lessc {
 
 	function lib_rgbahex($color) {
 		if ($color[0] != 'color')
-			throw new exception("color expected for rgbahex");
+			throw new Exception("color expected for rgbahex");
 
 		return sprintf("#%02x%02x%02x%02x",
 			isset($color[4]) ? $color[4]*255 : 0,
@@ -1522,7 +1522,7 @@ class lessc {
 	// http://sass-lang.com/docs/yardoc/Sass/Script/Functions.html#mix-instance_method
 	function lib_mix($args) {
 		if ($args[0] != 'list')
-			throw new exception("mix expects (color1, color2, weight)");
+			throw new Exception("mix expects (color1, color2, weight)");
 
 		list($first, $second, $weight) = $args[2];
 		$first = $this->assertColor($first);
@@ -1553,7 +1553,7 @@ class lessc {
 
 	function assertColor($value, $error = "expected color value") {
 		$color = $this->coerceColor($value);
-		if (is_null($color)) throw new exception($error);
+		if (is_null($color)) throw new Exception($error);
 		return $color;
 	}
 
@@ -1844,11 +1844,11 @@ class lessc {
 				$out[] = $lval % $rval;
 				break;
 			case '/':
-				if ($rval == 0) throw new exception("evaluate error: can't divide by zero");
+				if ($rval == 0) throw new Exception("evaluate error: can't divide by zero");
 				$out[] = $lval / $rval;
 				break;
 			default:
-				throw new exception('evaluate error: color op number failed on op '.$op);
+				throw new Exception('evaluate error: color op number failed on op '.$op);
 			}
 		}
 		return $this->fixColor($out);
@@ -1877,11 +1877,11 @@ class lessc {
 			$value = $left[1] % $right[1];
 			break;	
 		case '/':
-			if ($right[1] == 0) throw new exception('parse error: divide by zero');
+			if ($right[1] == 0) throw new Exception('parse error: divide by zero');
 			$value = $left[1] / $right[1];
 			break;
 		default:
-			throw new exception('parse error: unknown number operator: '.$op);	
+			throw new Exception('parse error: unknown number operator: '.$op);	
 		}
 
 		return array($type, $value);
@@ -2075,7 +2075,7 @@ class lessc {
 			$this->throwParseError();
 
 		if (!is_null($this->env->parent))
-			throw new exception('parse error: unclosed block');
+			throw new Exception('parse error: unclosed block');
 
 		$root = $this->env;
 		$this->env = null;
@@ -2119,7 +2119,7 @@ class lessc {
 		}
 
 		if ($this->peek("(.*?)(\n|$)", $m))
-			throw new exception($msg.': failed at `'.$m[1].'` '.$loc);
+			throw new Exception($msg.': failed at `'.trim($m[1]).'` '.$loc);
 	}
 
 	/**
