@@ -1,8 +1,8 @@
-    title: v0.3.1 documentation
+    title: v0.3.2 documentation
     link_to_home: true
 --
 
-<h2 skip="true">Documentation v0.3.0</h2>
+<h2 skip="true">Documentation v0.3.2</h2>
 
 <div style="margin-bottom: 1em;">$index</div>
 
@@ -82,6 +82,16 @@ appear. They can hold any CSS property value.
 Variables are only visible for use from their current scope, or any enclosed
 scopes.
 
+If you have a string or keyword in a variable, you can reference another
+variable by that name by repeating the `@`:
+
+    ```less
+    @value: 20px;
+    @value_name: "value";
+
+    width: @@value_name;
+    ```
+
 ### Expressions
 
 Expressions let you combine values and variables in meaningful ways. For
@@ -156,7 +166,7 @@ logically organize the structure of our CSS.
     ```less
     ol.list {
       li.special {
-        border: 1px solid red; 
+        border: 1px solid red;
       }
 
       li.plain {
@@ -257,7 +267,7 @@ compiled. Its properties will only appear when mixed into another block.
 
 The canonical example is to create a rounded corners mixin that works across
 browsers:
-    
+
     ```less
     .rounded-corners(@radius: 5px) {
       border-radius: @radius;
@@ -282,7 +292,7 @@ show up in the output, give it a blank argument list:
     .secret() {
       font-size: 6000px;
     }
-    
+
     .div {
       .secret;
     }
@@ -331,7 +341,7 @@ spaces.
 This useful for quickly assigning all the arguments:
 
     ```less
-    .box-shadow(@inset, @x, @y, @blur, @spread, @color) {
+    .box-shadow(@x, @y, @blur, @color) {
       box-shadow: @arguments;
       -webkit-box-shadow: @arguments;
       -moz-box-shadow: @arguments;
@@ -341,7 +351,7 @@ This useful for quickly assigning all the arguments:
     }
     ```
 
-In addition to the arguments passed to the mixin, `@arguments` will also inlude
+In addition to the arguments passed to the mixin, `@arguments` will also include
 remaining default values assigned by the mixin:
 
 
@@ -354,6 +364,174 @@ remaining default values assigned by the mixin:
       .border-mixin(4px, dotted);
     }
 
+    ```
+
+
+#### Pattern Matching
+
+When you *mix in* a mixin, all the available mixins of that name in the current
+scope are checked to see if they match based on what was passed to the mixin
+and how it was declared.
+
+The simplest case is matching by number of arguments. Only the mixins that
+match the number of arguments passed in are used, with the exception of 0
+argument mixins, which are always included.
+
+    ```less
+    .simple() { // no argument mixin always included
+      height: 10px;
+    }
+
+    .simple(@a, @b) {
+      color: red;
+    }
+
+    .simple(@a) {
+      color: blue;
+    }
+
+    div {
+      .simple(10);
+    }
+
+    span {
+      .simple(10, 20);
+    }
+    ```
+
+Another way of controlling whether a mixin matches is by specifying a value in
+place of an argument name when declaring the mixin:
+
+    ```less
+    .style(old, @size) {
+      font: @size serif;
+    }
+
+    .style(new, @size) {
+      font: @size sans-serif;
+    }
+
+    .style(@_, @size) {
+      letter-spacing: floor(@size / 6px);
+    }
+
+    em {
+      @switch: old;
+      .style(@switch, 15px);
+    }
+    ```
+
+Notice that two of the three mixins were matched. The mixin with a matching
+first argument, and the generic mixin that matches two arguments. It's common
+to use `@_` as the name of a variable we intend to not use. It has no special
+meaning to LESS, just to the reader of the code.
+
+#### Guards
+
+Another way of restricting when a mixin is mixed in is by using guards. A guard
+is a special expression that is associated with a mixin declaration that is
+evaluated during the mixin process. It must evaluate to true before the mixin
+can be used.
+
+We use the `when` keyword to begin describing a list of guard expressions.
+
+Here's a simple example:
+
+    ```less
+    .guarded(@arg) when (@arg = hello) {
+      color: blue;
+    }
+
+    div {
+      .guarded(hello); // match
+    }
+
+    span {
+      .guarded(world); // no match
+    }
+    ```
+Only the `div`'s mixin will match in this case, because the guard expression
+requires that `@arg` is equal to `hello`.
+
+We can include many different guard expressions by separating them by commas.
+Only one of them needs to match to trigger the mixin:
+
+    ```less
+    .x(@a, @b) when (@a = hello), (@b = world) {
+      width: 960px;
+    }
+
+    div {
+      .x(hello, bar); // match
+    }
+
+    span {
+      .x(foo, world); // match
+    }
+
+    pre {
+      .x(foo, bar); // no match
+    }
+    ```
+
+Instead of a comma, we can use `and` keyword to make it so all of the guards
+must match in order to trigger the mixin. `and` has higher precedence than the
+comma.
+
+    ```less
+    .y(@a, @b) when (@a = hello) and (@b = world) {
+      height: 600px;
+    }
+
+    div {
+      .y(hello, world); // match
+    }
+
+    span {
+      .y(hello, bar); // no match
+    }
+    ```
+
+Commas and `and`s can be mixed and matched.
+
+You can also negate a guard expression by using `not` in from of the parentheses:
+
+    ```less
+    .x(@a) when not (@a = hello) {
+      color: blue;
+    }
+
+    div {
+      .x(hello); // no match
+    }
+    ```
+
+The `=` operator is used to check equality between any two values. For numbers
+the following comparison operators are also defined:
+
+`<`, `>`, `=<`, `>=`
+
+There is also a collection of predicate functions that can be used to test the
+type of a value.
+
+These are `isnumber`, `iscolor`, `iskeyword`, `isstring`, `ispixel`,
+`ispercentage` and `isem`.
+
+    ```less
+    .mix(@a) when (ispercentage(@a)) {
+      height: 500px * @a;
+    }
+    .mix(@a) when (ispixel(@a)) {
+      height: @a;
+    }
+
+    div.a {
+      .mix(50%);
+    }
+
+    div.a {
+      .mix(350px);
+    }
     ```
 
 ### Import
@@ -503,28 +681,28 @@ function that let's you unquote any value. It is called `e`.
 
 * `spin(color, amount)` -- returns a color with `amount` degrees added to hue
 
-* `fade(color, amount)` -- retuns a color with the alpha set to `amount`
+* `fade(color, amount)` -- returns a color with the alpha set to `amount`
 
-* `hue(color)` -- retuns the hue of `color`
+* `hue(color)` -- returns the hue of `color`
 
-* `saturation(color)` -- retuns the saturation of `color`
+* `saturation(color)` -- returns the saturation of `color`
 
-* `lightness(color)` -- retuns the lightness of `color`
+* `lightness(color)` -- returns the lightness of `color`
 
-* `alpha(color)` -- retuns the alpha value of `color` or 1.0 if it doesn't have an alpha
+* `alpha(color)` -- returns the alpha value of `color` or 1.0 if it doesn't have an alpha
 
-* `percentage(number)` -- converts a floating point number to a percentage, eg. `0.65` -> `65%`
+* `percentage(number)` -- converts a floating point number to a percentage, e.g. `0.65` -> `65%`
 
-* `mix(color1, color1, percent)` -- mixes two colors by percentagle where 100%
+* `mix(color1, color1, percent)` -- mixes two colors by percentage where 100%
   keeps all of `color1`, and 0% keeps all of `color2`. Will take into account
   the alpha of the colors if it exists. See
   <http://sass-lang.com/docs/yardoc/Sass/Script/Functions.html#mix-instance_method>.
 
 * `rgbahex(color)` -- returns a string containing 4 part hex color.
-   
+
    This is used to convert a CSS color into the hex format that IE's filter
    method expects when working with an alpha component.
-   
+
        ```less
        .class {
           @start: rgbahex(rgba(25, 34, 23, .5));
@@ -662,7 +840,7 @@ associative array of names and values. The values will parsed as CSS values:
 
     ```php
     $less = new lessc();
-    echo $less->parse(".magic { color: @color;  width: @base - 200; }", 
+    echo $less->parse(".magic { color: @color;  width: @base - 200; }",
         array(
             'color' => 'red';
             'base' => '960px';
@@ -732,10 +910,13 @@ The best way to get an understanding of the system is to register is dummy
 function which does a `vardump` on the argument. Try passing the function
 different values from LESS and see what the results are.
 
-The return value of the registered function must also be a LESS type, but if it is
+The return value of the registered function must also be a **lessphp** type, but if it is
 a string or numeric value, it will automatically be coerced into an appropriate
 typed value. In our example, we reconstruct the value with our modifications
 while making sure that we preserve the original type.
+
+In addition to the arguments passed from **lessphp**, the instance of
+**lessphp** itself is sent to the registered function as the second argument.
 
 ## Command Line Interface
 
@@ -773,7 +954,7 @@ Errors from watch mode are written to standard out.
 ## License
 
 Copyright (c) 2010 Leaf Corcoran, <http://leafo.net/lessphp>
- 
+
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
 "Software"), to deal in the Software without restriction, including
@@ -781,10 +962,10 @@ without limitation the rights to use, copy, modify, merge, publish,
 distribute, sublicense, and/or sell copies of the Software, and to
 permit persons to whom the Software is furnished to do so, subject to
 the following conditions:
- 
+
 The above copyright notice and this permission notice shall be
 included in all copies or substantial portions of the Software.
- 
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
