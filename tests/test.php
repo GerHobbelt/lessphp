@@ -149,13 +149,13 @@ foreach ($tests as $test) {
 		ob_start();
 		$parsed = trim($compiler->parse(file_get_contents($test['in'])));
 		ob_end_clean();
-	} catch (exception $e) {
+	} catch (Exception $e) {
 		dump(array(
 			"Failed to compile input, reason:",
 			$e->getMessage(),
 			"Aborting"
 		), 1, $fail_prefix);
-		break;
+		//break;   // do not abort on first failure; barge on!
 	}
 
 	if ($compiling) {
@@ -200,6 +200,9 @@ foreach ($tests as $test) {
 
 	$i++;
 }
+$i--;
+
+printf("    [Tests: %d / failed: %d / passed: %d]\n", $i, $fail_count, $i - $fail_count);
 
 exit($fail_count > 255 ? 255 : $fail_count);
 ?>

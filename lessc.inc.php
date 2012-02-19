@@ -280,7 +280,7 @@ class lessc {
 		if ($this->literal('}')) {
 			try {
 				$block = $this->pop();
-			} catch (exception $e) {
+			} catch (Exception $e) {
 				$this->seek($s);
 				$this->throwError($e->getMessage());
 			}
@@ -2353,7 +2353,7 @@ class lessc {
 			$this->throwError();
 
 		if (!is_null($this->env->parent))
-			throw new exception('parse error: unclosed block');
+			throw new Exception('parse error: unclosed block');
 
 		$root = $this->env;
 		$this->env = null;
