@@ -49,24 +49,6 @@ array(
 $prefix = strtr(realpath(dirname(__FILE__)), '\\', '/');
 require $prefix.'/../lessc.inc.php';
 
-$compiler = new lessc();
-/*
-  the last dir in the importDir array is also used as 'current dir' of
-  any string data fed to the compiler, i.e. any stuff that doesn't
-  come with a filename itself.
-
-  The way this is written is not advisable to copycat; use
-      $compiler = new lessc($test['in']);
-      $parsed = trim($compiler->parse();
-  instead, but then you'ld loose the 'inputs/test-imports' importDir
-  setup here; it is a hack (IMO) for previously incorrect path behaviour
-  of lessphp where some tests have the incorrect
-      @import('file1.less');
-  rather than the correct
-      @import('test-imports/file1.less');
- */
-$compiler->importDir = array($input['dir'].'/test-imports', $input['dir']);
-
 $fa = 'Fatal Error: ';
 if (php_sapi_name() != 'cli') {
 	exit($fa.$argv[0].' must be run in the command line.');
@@ -120,11 +102,6 @@ Examples of use:
 EOT;
 	exit(1);
 }
-
-$input['dir'] = $prefix.'/'.$input['dir'];
-$output['dir'] = $prefix.'/'.$output['dir'];
-if (!is_dir($input['dir']) || !is_dir($output['dir']))
-    exit($fa." both input and output directories must exist\n");
 
 $exe = array_shift($argv); // remove filename
 // get the first non flag as search string
@@ -182,7 +159,6 @@ $fail_prefix = " ** ";
 
 $fail_count = 0;
 $i = 1;
-$fail_count = 0;
 foreach ($tests as $test) {
 	printf("    [Test %04d/%04d] %s -> %s\n", $i, $count, basename($test['in']), basename($test['out']));
 
@@ -230,18 +206,8 @@ foreach ($tests as $test) {
 		}
 		$expected = trim(file_get_contents($test['out']));
 
-		try {
-			ob_start();
-			$compiler = new lessc($test['out']);
-			$expected_alt = trim($compiler->parse());
-			ob_end_clean();
-		} catch (Exception $e) {
-			$expected_alt = $expected;
-		}
-		
 		// don't care about CRLF vs LF change (DOS/Win vs. UNIX):
 		$expected = trim(str_replace("\r\n", "\n", $expected));
-		$expected_alt = trim(str_replace("\r\n", "\n", $expected_alt));
 		$parsed = trim(str_replace("\r\n", "\n", $parsed));
 
 		if ($expected != $parsed) {

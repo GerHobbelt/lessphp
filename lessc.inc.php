@@ -1914,7 +1914,7 @@ class lessc {
 		return false;
 	}
 
-function toName($val) {
+	function toName($val) {
 		switch($val[0]) {
 		case "string":
 			return substr($val[1], 1, -1);
