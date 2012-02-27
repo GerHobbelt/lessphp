@@ -96,3 +96,27 @@ fade {
 }
 
 
+
+// purposfuly whacky to match less.js
+
+@color: #fcf8e3;
+
+body {
+	start: @color;
+	spin: spin(@color, -10); // #fcf4e3
+	chained: darken(spin(@color, -10), 3%); // gives #fbeed5, should be #fbefd5
+	direct: darken(#fcf4e3, 3%); // #fbefd5
+}
+
+// spin around
+pre {
+	@errorBackground: #f2dede;
+	spin: spin(@errorBackground, -10);
+}
+
+dd {
+	@white: #fff;
+	background-color: mix(@white, darken(@white, 10%), 60%);
+}
+
+
