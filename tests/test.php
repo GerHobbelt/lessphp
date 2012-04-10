@@ -190,7 +190,7 @@ foreach ($tests as $test) {
 			$e->getMessage(),
 			"Aborting"
 		), 1, $fail_prefix);
-		//break;
+		//break;   // do not abort on first failure; barge on!
 	}
 
 	if ($compiling) {

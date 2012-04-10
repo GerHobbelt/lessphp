@@ -8,7 +8,15 @@
   mul:50;
   mul:50;
 }
-.shorthand { div:10/5; }
+.supress-division {
+  border-radius:10px / 10px;
+  border-radius:10px / 10px;
+  border-radius:hello(10px / 10px) world;
+  font:10px / 30 sans-serif;
+  font:10px / 20px sans-serif;
+  font:10px / 20px sans-serif;
+  border-radius:0 15px 15px 15px / 0 50% 50% 50%;
+}
 .parens {
   sub:5;
   add:15;
@@ -17,6 +25,11 @@
   mul:50;
 }
 .keyword-names { height:"hello" 25; }
+.negation {
+  hello:-1px;
+  hello:-1px;
+  hello:-10;
+}
 .test {
   single:5;
   single:10;
@@ -31,4 +44,18 @@
   width:96;
   height:113;
   margin:12;
+}
+.percents {
+  color:1000%;
+  color:1000%;
+  color:100%;
+  color:1000px;
+  color:1000%;
+  color:30%;
+  color:10%;
+  color:2%;
+}
+.misc {
+  x:40px;
+  y:40em;
 }
