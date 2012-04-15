@@ -1,12 +1,12 @@
 <?php
 
 /**
- * lessphp v0.3.3
+ * lessphp v0.3.4
  * http://leafo.net/lessphp
  *
  * LESS css compiler, adapted from http://lesscss.org
  *
- * Copyright 2011, Leaf Corcoran <leafot@gmail.com>
+ * Copyright 2012, Leaf Corcoran <leafot@gmail.com>
  * Licensed under MIT or GPLv3, see LICENSE
  */
 
@@ -33,7 +33,7 @@
  *
  */
 class lessc {
-	public static $VERSION = "v0.3.3";
+	public static $VERSION = "v0.3.4";
 	protected $buffer;
 	protected $count;
 	protected $line;
@@ -1374,7 +1374,7 @@ class lessc {
 		$numCalling = count($callingArgs);
 
 		if (empty($block->args)) {
-			return $numCalling == 0;
+			return $block->is_vararg || $numCalling == 0;
 		}
 
 		$i = -1; // no args
@@ -2343,6 +2343,7 @@ class lessc {
 		$b->parent = $this->env;
 
 		$b->id = self::$nextBlockId++;
+		$b->is_vararg = false;
 		$b->tags = $tags;
 		$b->props = array();
 		$b->children = array();
