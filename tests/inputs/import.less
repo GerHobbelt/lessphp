@@ -21,3 +21,36 @@ div {
 	@import "file2";
 }
 
+
+.mixin-import() {
+	@import "file3";
+}
+
+.one {
+	.mixin-import();
+	color: blue;
+}
+
+.two {
+	.mixin-import();
+}
+
+
+#merge-import-mixins {
+	@import "a";
+	@import "b";
+	div { .just-a-class; }
+}
+
+
+@import "inner/file1";
+
+
+// test bubbling variables up from imports, while preserving order
+
+pre {
+	color: @someValue;
+}
+
+@import "file3";
+
