@@ -62,16 +62,6 @@ class lessc {
 	// so we know how to create error messages
 	protected $sourceParser = null;
 	protected $sourceLoc = null;
-			// expand variables in import paths too:
-			$url = $this->compileValue(array('string', $url));
-			$media = $this->compileValue(array('string', $media));
-			
-			}
-
-			// fix relative paths for raw imports inside regular imports:
-			$current_dir = $this->baseDir;
-			if (self::determinePathType($url) == 0 /* relative path */ && !empty($current_dir)) {
-				$url = self::normalizePath($current_dir . (substr($current_dir, -1) != '/' ? '/' : '') . $url);
 
 	// determines the type of path: 0 ~ relative path, 1 ~ absolute path, -1 ~ URL (not a path per se)
 	public static function determinePathType($path)
@@ -2083,7 +2073,8 @@ class lessc_parser {
 		}
 
 		if ($this->import($url, $media)) {
-			//$this->append(array('import', $url, $media), $s);
+			$this->append(array('import', $url, $media), $s);	// TODO: fix the code below this...
+			return;                                          	// TODO: fix the code below this...
 			
 			// expand variables in import paths too:
 			$url = $this->compileValue(array('string', $url));
