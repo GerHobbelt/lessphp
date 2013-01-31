@@ -670,8 +670,8 @@ class lessc {
 		}
 
 		// unquote string
-		if ($this->literal('~') && $this->string($value, $d)) {
-			$value = array('escape', $value);
+		if ($this->literal("~") && $this->string($value, $d)) {
+			$value = array("escape", $value);
 			return true;
 		} else {
 			$this->seek($s);
@@ -940,7 +940,7 @@ class lessc {
 		$tags = array();
 		while ($this->tag($tt, true)) {
 			$tags[] = $tt;
-			$this->literal('>');
+			$this->literal(">");
 		}
 
 		if (count($tags) == 0) return false;
@@ -957,7 +957,7 @@ class lessc {
 			if ($this->match('', $_)) $value .= $_[0];
 
 			// escape parent selector
-			$value = str_replace($this->parentSelector, '&&', $value);
+			$value = str_replace($this->parentSelector, "&&", $value);
 			return true;
 		}
 
@@ -1266,7 +1266,7 @@ class lessc {
 			if (isset($block->media)) {
 				echo $this->compileMedia($block);
 			} elseif (isset($block->keyframes)) {
-				echo $block->tags[0].' '.
+				echo $block->tags[0]." ".
 					$this->compileValue($this->reduce($block->keyframes));
 			} else {
 				list($name) = $block->tags;
@@ -1279,9 +1279,9 @@ class lessc {
 		// dump it
 		if (count($lines) > 0) {
 			if (!$special_block && !$isRoot) {
-				echo $indent.implode(', ', $tags);
-				if (count($lines) > 1) echo ' {'.$nl;
-				else echo ' { ';
+				echo $indent.implode(", ", $tags);
+				if (count($lines) > 1) echo " {".$nl;
+				else echo " { ";
 			}
 
 			echo implode($nl, $lines);
@@ -1310,14 +1310,14 @@ class lessc {
 			foreach ($current as $tag) {
 				// inject parent in place of parent selector, ignoring escaped values
 				$count = 0;
-				$parts = explode('&&', $tag);
+				$parts = explode("&&", $tag);
 
 				foreach ($parts as $i => $chunk) {
 					$parts[$i] = str_replace($this->parentSelector, $ptag, $chunk, $c);
 					$count += $c;
 				}
 				
-				$tag = implode('&', $parts);
+				$tag = implode("&", $parts);
 
 				if ($count > 0) {
 					$tags[] = trim($tag);
@@ -1498,7 +1498,7 @@ class lessc {
 				$this->set($name, $value);
 			} else {
 				$_lines[] = "$name:".
-					$this->compileValue($this->reduce($value)).';';
+					$this->compileValue($this->reduce($value)).";";
 			}
 			break;
 		case 'block':
@@ -1747,13 +1747,13 @@ class lessc {
 	// utility func to unquote a string
 	function lib_e($arg) {
 		switch ($arg[0]) {
-			case 'list':
+			case "list":
 				$items = $arg[2];
 				if (isset($items[0])) {
 					return $this->lib_e($items[0]);
 				}
-				return '';
-			case 'string':
+				return "";
+			case "string":
 				$str = $this->compileValue($arg);
 				return substr($str, 1, -1);
 			default:
@@ -1762,10 +1762,10 @@ class lessc {
 	}
 
 	function lib__sprintf($args) {
-		if ($args[0] != 'list') return $args;
+		if ($args[0] != "list") return $args;
 		$values = $args[2];
 		$source = $this->reduce(array_shift($values));
-		if ($source[0] != 'string') {
+		if ($source[0] != "string") {
 			return $source;
 		}
 
@@ -1776,8 +1776,8 @@ class lessc {
 				$val = isset($values[$i]) ? $this->reduce($values[$i]) : array('keyword', '');
 				$i++;
 				switch ($match[1]) {
-				case 's':
-					if ($val[0] == 'string') {
+				case "s":
+					if ($val[0] == "string") {
 						$rep = substr($val[1], 1, -1);
 						break;
 					}
@@ -1923,7 +1923,7 @@ class lessc {
 	// mix(@color1, @color2, @weight);
 	// http://sass-lang.com/docs/yardoc/Sass/Script/Functions.html#mix-instance_method
 	function lib_mix($args) {
-		if ($args[0] != 'list' || count($args[2]) < 3)
+		if ($args[0] != "list" || count($args[2]) < 3)
 			$this->throwError("mix expects (color1, color2, weight)");
 
 		list($first, $second, $weight) = $args[2];
@@ -2136,7 +2136,7 @@ class lessc {
 				if ($color) $var = $color;
 				else {
 					list($_, $name, $args) = $var;
-					if ($name == '%') $name = '_sprintf';
+					if ($name == "%") $name = "_sprintf";
 					$f = isset($this->libFunctions[$name]) ?
 						$this->libFunctions[$name] : array($this, 'lib_'.$name);
 
