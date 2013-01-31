@@ -44,7 +44,6 @@ class lessc {
 	static protected $FALSE = array("keyword", "false");
 
 	public $indentLevel;
-	public $indentChar = '  ';
 
 	protected $env = null;
 
@@ -1214,13 +1213,8 @@ class lessc {
 	 *
 	 */
 	function compileBlock($block, $parent_tags = null) {
-		$isRoot = $parent_tags == null && $block->tags == null;
-
-		$indent = str_repeat($this->indentChar, $this->indentLevel);
-
 		if (!empty($block->no_multiply)) {
 			$special_block = true;
-			$this->indentLevel++;
 			$tags = array();
 		} else {
 			$special_block = false;
@@ -1248,57 +1242,44 @@ class lessc {
 		$lines = array();
 		$blocks = array();
 		$this->mixImports($block);
-		foreach ($block->props as $prop) {
+
+		$idelta = $this->formatter->indentAmount($block);
+		$this->indentLevel += $idelta;
+
+		foreach ($this->sortProps($block->props) as $prop) {
 			$this->compileProp($prop, $block, $tags, $lines, $blocks);
 		}
+		$this->indentLevel -= $idelta;
 
 		$block->scope = $env;
 
 		$this->pop();
 
-		$nl = $isRoot ? "\n".$indent :
-			"\n".$indent.$this->indentChar;
-
-		ob_start();
-
-		if ($special_block) {
-			$this->indentLevel--;
-			if (isset($block->media)) {
-				echo $this->compileMedia($block);
-			} elseif (isset($block->keyframes)) {
-				echo $block->tags[0]." ".
-					$this->compileValue($this->reduce($block->keyframes));
-			} else {
-				list($name) = $block->tags;
-				echo $indent.$name;
-			}
-
-			echo ' {'.(count($lines) > 0 ? $nl : "\n");
+		// override tags if it's a special block
+		if (isset($block->media)) {
+			$tags = $this->compileMedia($block);
+		} elseif (isset($block->keyframes)) {
+			$tags = $block->tags[0]." ".
+				$this->compileValue($this->reduce($block->keyframes));
+		} elseif ($special_block) { // font-face and the like
+			$tags = $block->tags[0];
 		}
 
-		// dump it
-		if (count($lines) > 0) {
-			if (!$special_block && !$isRoot) {
-				echo $indent.implode(", ", $tags);
-				if (count($lines) > 1) echo " {".$nl;
-				else echo " { ";
-			}
+		return $this->formatter->block($tags, $special_block, $lines,
+			$blocks, $this->indentLevel);
+	}
 
-			echo implode($nl, $lines);
-
-			if (!$special_block && !$isRoot) {
-				if (count($lines) > 1) echo "\n".$indent."}\n";
-				else echo " }\n";
-			} else echo "\n";
+	function sortProps($props) {
+		$out = array();
+		foreach ($props as $prop) {
+			if ($prop[0] == "assign") $out[] = $prop;
 		}
 
-		foreach ($blocks as $b) echo $b;
-
-		if ($special_block) {
-			echo $indent."}\n";
+		foreach ($props as $prop) {
+			if ($prop[0] != "assign") $out[] = $prop;
 		}
 
-		return ob_get_clean();
+		return $out;
 	}
 
 	// find the fully qualified tags for a block and its parent's tags
@@ -1532,7 +1513,7 @@ class lessc {
 				$old_parent = $mixin->parent;
 				if ($mixin != $block) $mixin->parent = $block;
 
-				foreach ($mixin->props as $sub_prop) {
+				foreach ($this->sortProps($mixin->props) as $sub_prop) {
 					$this->compileProp($sub_prop, $mixin, $tags, $_lines, $_blocks);
 				}
 
@@ -2475,7 +2456,7 @@ class lessc {
 	protected function prepareParser($buff) {
 		$this->env = null;
 		$this->expandStack = array();
-		$this->indentLevel = 0;
+		$this->indentLevel = -1;
 		$this->count = 0;
 		$this->line = 1;
 
@@ -2515,7 +2496,7 @@ class lessc {
 		default: /* URI */
 			throw new Exception('@import from remote URI is not supported: ' . $fname);
 		}
-		$less->indentChar = $this->indentChar;
+		$less->formatter = $this->formatter;
 		$less->compat = $this->compat;
 		return $less;
 	}
@@ -2553,15 +2534,38 @@ class lessc {
 	}
 	
 	// parse and compile buffer
-	function parse($str = null, $initial_variables = null) {
+	function parse($str = null, $initialVariables = null) {
+		if (is_array($str)) {
+			$initialVariables = $str;
+			$str = null;
+		}
+
 		$locale = setlocale(LC_NUMERIC, 0);
 		setlocale(LC_NUMERIC, "C");
 		$root = $this->parseTree($str);
+		$root->isRoot = true;
 
-		if ($initial_variables) $this->injectVariables($initial_variables);
+		$this->formatter = $this->newFormatter();
+
+		if ($initialVariables) $this->injectVariables($initialVariables);
 		$out = $this->compileBlock($root);
 		setlocale(LC_NUMERIC, $locale);
 		return $out;
+	}
+
+	function setFormatter($name) {
+		$this->formatterName = $name;
+	}
+
+	function newFormatter() {
+		$className = "lessc_formatter";
+		if (!empty($this->formatterName)) {
+			if (!is_string($this->formatterName))
+				return $this->formatterName;
+			$className = "lessc_formatter_$this->formatterName";
+		}
+
+		return new $className;
 	}
 
 	/**
@@ -2909,5 +2913,104 @@ class lessc {
 		'yellow' => '255,255,0',
 		'yellowgreen' => '154,205,50'
 	);
+}
+
+class lessc_formatter {
+	public $indentChar = "  ";
+
+	public $break = "\n";
+	public $open = " {";
+	public $close = "}";
+	public $tagSeparator = ", ";
+
+	public $disableSingle = false;
+	public $openSingle = " { ";
+	public $closeSingle = " }";
+
+	// returns the amount of indent that should happen for a block
+	function indentAmount($block) {
+		return isset($block->isRoot) || !empty($block->no_multiply) ? 1 : 0;
+	}
+
+	// an $indentLevel of -1 signifies the root level
+	function block($tags, $wrapChildren, $lines, $children, $indentLevel) {
+		$indent = str_repeat($this->indentChar, max($indentLevel, 0));
+
+		// what $lines is imploded by
+		$nl = $indentLevel == -1 ? $this->break :
+			$this->break.$indent.$this->indentChar;
+
+		ob_start();
+
+		$isSingle = !$this->disableSingle && !$wrapChildren
+			&& count($lines) <= 1;
+
+		$showDelim = !empty($tags) && (count($lines) > 0 || $wrapChildren);
+
+		if ($showDelim) {
+			if (is_array($tags)) {
+				$tags = implode($this->tagSeparator, $tags);
+			}
+
+			echo $indent.$tags;
+			if ($isSingle) echo $this->openSingle;
+			else {
+				echo $this->open;
+				if (!empty($lines)) echo $nl;
+				else echo $this->break;
+			}
+		}
+
+		echo implode($nl, $lines);
+
+		if ($wrapChildren) {
+			if (!empty($lines)) echo $this->break;
+			foreach ($children as $child) echo $child;
+		}
+
+		if ($showDelim) {
+			if ($isSingle) echo $this->closeSingle;
+			else {
+				if (!$wrapChildren) echo $this->break;
+				echo $indent.$this->close;
+			}
+			echo $this->break;
+		} elseif (!empty($lines)) {
+			echo $this->break;
+		}
+
+		if (!$wrapChildren)
+			foreach ($children as $child) echo $child;
+
+		return ob_get_clean();
+	}
+
+	function property($name, $values) {
+		return "";
+	}
+}
+
+class lessc_formatter_compressed extends lessc_formatter {
+	public $indentChar = "";
+
+	public $break = "";
+	public $open = "{";
+	public $close = "}";
+	public $tagSeparator = ",";
+	public $disableSingle = true;
+}
+
+class lessc_formatter_indent extends lessc_formatter {
+	function indentAmount($block) {
+		if (isset($block->isRoot)) return 1;
+		$numLines = 0;
+		foreach ($block->props as $prop) {
+			$t = $prop[0];
+			if ($t != 'block' && $t != 'mixin') {
+				$numLines++;
+			}
+		}
+		return $numLines > 0 ? 1 : 0;
+	}
 }
 
